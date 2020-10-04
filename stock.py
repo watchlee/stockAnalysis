@@ -192,9 +192,8 @@ def run():
     #file_name = updateStock()
     file_name="stock_id.csv"
     stock_list = readStocks(file_name)
-    showStocks(stock_list)
-    stockID = input("Enter stock ID:")
-    stockID = stockID+'.TW'
+    #showStocks(stock_list)
+    stockID = input("Enter stockID (.TW) for listed company (.TWO) for over-the-counter company :")
     stockFile = selectStock(stockID)
     stockData = getStockData(stockFile)
     movingaverage(stockData,20)
