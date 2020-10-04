@@ -123,9 +123,20 @@ def showStockData(stockData,stockName):
     #marketcolor
     mc = mpf.make_marketcolors(up="red",down="green",edge="i",wick="i",volume="in",inherit=True)
     #style
-    s = mpf.make_mpf_style(gridaxis='both',base_mpf_style='nightclouds',gridstyle='-.',y_on_right=False,marketcolors=mc)
-    # 设置线宽
-    mpl.rcParams['lines.linewidth'] = 1
+    #mpf.available_styles()
+    #['binance',
+    # 'blueskies',
+    # 'brasil',
+    # 'charles',
+    # 'checkers',
+    # 'classic',
+    # 'default',
+    # 'mike',
+    # 'nightclouds',
+    # 'sas',
+    # 'starsandstripes',
+    # 'yahoo']
+    s = mpf.make_mpf_style(gridaxis='both',base_mpf_style='blueskies',gridstyle='-.',y_on_right=False,marketcolors=mc)
 
     # 设置基本参数
     # type:绘制图形的类型，有candle, renko, ohlc, line等
@@ -143,8 +154,8 @@ def showStockData(stockData,stockName):
 	volume=True, 
 	title='\nTW_stock %s candle_line' % (symbol),ylabel='OHLC Candles', 
         ylabel_lower='Trade volume',
-        figscale=1.4,
-        figratio=(10,6)
+        figscale=1.25,
+        figratio=(16,5)
         )
 	#figratio=(10, 6), 
 	#figscale=4)
@@ -155,9 +166,9 @@ def showStockData(stockData,stockName):
     Days = input("Enter Days to read:")
     Days = int(Days)
     apds = [
-        mpf.make_addplot( stockData['Lower'][-Days:],color='y',width=0.75 ,ylabel='Lower'),
-        mpf.make_addplot( stockData['Upper'][-Days:], color = 'y',width=0.75),
-        mpf.make_addplot( stockData['MA_20'][-Days:], color='y' ,width=0.75),
+        mpf.make_addplot( stockData['Lower'][-Days:],color='b',width=0.75 ,ylabel='Lower'),
+        mpf.make_addplot( stockData['Upper'][-Days:], color = 'b',width=0.75),
+        mpf.make_addplot( stockData['MA_20'][-Days:], color='b' ,width=0.75),
         #mpf.make_addplot( low_signal[-Days:],color='g',markersize=200,marker='^',type='scatter' ),
         #mpf.make_addplot( high_signal[-Days:],color='g',markersize=200,marker='x',type='scatter' ),
         mpf.make_addplot( stockData['Bbandwidth'][-Days:],color='r',panel=3,width=0.75,ylabel="BD"),
@@ -169,7 +180,11 @@ def showStockData(stockData,stockName):
     #configure chart legend and title
     axes[0].legend('UML')
     
-    
+    #todo_list:
+    #回測系統
+    #優化視窗 鼠標可顯示該位置的價格 數值等等...
+    #加入其他技術分析
+    #考慮網頁化?
 
     mpf.show()
 
