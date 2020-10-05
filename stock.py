@@ -7,14 +7,12 @@ import requests
 from io import StringIO
 from datetime import datetime
 import time
-from dateutil.relativedelta import relativedelta
 from matplotlib import pyplot as plt
 import matplotlib as mpl
 import pandas as pd
 import numpy as np
 import json
 import yfinance as yf
-import h5py
 
 import matplotlib.pyplot as plt
 from matplotlib import dates as mdates
@@ -87,11 +85,26 @@ def bollingerBand(stockData,N,rate):
     stockData['percentB'] = ((stockData['Close']-stockData['Lower']) / (stockData['Upper']-stockData['Lower']))
     stockData['Bbandwidth'] = (stockData['Upper']-stockData['Lower']) / stockData[MA_N]
 
+def exponentialMovingAverage(stockData,N):
+    EMA_NAME = "EMA_"+str(N)
+    stockData['Close'] = pd.to_numeric(stockData['Close'])
+    stockData[EMA_NAME] = stockData['Close'].ewm(span=N).mean()
+
+def MACD(stockData,N,N2,DIF_DAY):
+    exponentialMovingAverage(stockData,N)
+    exponentialMovingAverage(stockData,N2)
+    EMA_N = 'EMA_'+str(N)
+    EMA_N2 = 'EMA_'+str(N2)
+    stockData['DIF'] = stockData[EMA_N]-stockData[EMA_N2]
+    stockData['DEM'] = stockData['DIF'].ewm(span=DIF_DAY).mean()
+    stockData['OSC'] = stockData['DIF'] - stockData['DEM']
+	
+
 def movingaverage(stockData,N):
     stockData['Close'] = pd.to_numeric(stockData['Close'])
     MA_N = "MA_"+str(N)
     stockData[MA_N] = stockData['Close'].rolling(N).mean()
-
+	
 #there is bug in showing np.nan in the graph
 def percentB_below(stockData):
     percentB = stockData['percentB']
@@ -178,8 +191,8 @@ def showStockData(stockData,stockName):
     #add legend which doesn't available in current mplfinance library
     fig, axes = mpf.plot(stockData[-Days:], **kwargs,style=s,show_nontrading= False,addplot=apds,returnfig=True)
     #configure chart legend and title
-    axes[0].legend('UML')
-    
+    #axes[0].legend(['MA_5'],['MA_20'],['Upper'],['Lower'])
+    #_, axs = plt.subplots(nrows=2,ncols=2,figsize=(7,5))
     #todo_list:
     #回測系統
     #優化視窗 鼠標可顯示該位置的價格 數值等等...
@@ -188,8 +201,11 @@ def showStockData(stockData,stockName):
 
     mpf.show()
 
+
+
+
 def run():
-    #file_name = updateStock()
+    file_name = updateStock()
     file_name="stock_id.csv"
     stock_list = readStocks(file_name)
     #showStocks(stock_list)
@@ -198,6 +214,8 @@ def run():
     stockData = getStockData(stockFile)
     movingaverage(stockData,20)
     bollingerBand(stockData,20,2.1)
+    MACD(stockData,12,26,9)
+    print(stockData)
     showStockData(stockData,stockFile)
 
 if __name__=="__main__":
