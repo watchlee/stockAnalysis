@@ -15,13 +15,17 @@ import json
 import yfinance as yf
 
 import matplotlib.pyplot as plt
-from matplotlib import dates as mdates
 from matplotlib import ticker as mticker
 #from pyti.bollinger_bands import upper_bollinger_band as ubb
 #from pyti.bollinger_bands import lower_bollinger_band as lbb
 #from pyti.bollinger_bands import percent_b as percent_b
 #from pyti.bollinger_bands import bandwidth as bd 
 import mplfinance as mpf
+
+from matplotlib import style
+from mplfinance.original_flavor import candlestick_ohlc
+import matplotlib.dates as mdates
+
 
 
 # 參考 twstock 取得需要的 URL
@@ -33,9 +37,22 @@ STOCKINFO_URL = 'http://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch={stock_
 import requests.packages.urllib3
 requests.packages.urllib3.disable_warnings()
 
+def loadStock():
+    Listed_stock = requests.get("http://isin.twse.com.tw/isin/C_public.jsp?strMode=2")
+    OTC_stock = requests.get("http://isin.twse.com.tw/isin/C_public.jsp?strMode=4")
+    df = pd.read_html(Listed_stock.text)[0]
+    df2 = pd.read_html(OTC_stock.text)[0]
+    df.columns= df.iloc[0]
+    df = df.iloc[1:]
+    df = df.dropna(thresh=3, axis=0).dropna(thresh=3, axis=1)
+    df2.columns=df2.iloc[0]
+    df2 = df2.iloc[1:]
+    df2 = df2.dropna(thresh=3, axis=0).dropna(thresh=3, axis=1)
+    print(df)
+    print(df2)
 def updateStock():
-    #request stock data 
     link = 'https://quality.data.gov.tw/dq_download_json.php?nid=11549&md5_url=bb878d47ffbe7b83bfc1b41d0b24946e'
+    #request stock data 
     r = requests.get(link)
     file_name = "stock_id.csv"
     print("Get today's stock from TW")
@@ -67,6 +84,7 @@ def selectStock(stockID):
     return stock_file
 
 def getStockData(stock_file):
+    #data = pd.read_csv(stock_file, parse_dates=True, index_col='Date')
     data = pd.read_csv(stock_file)
     data.columns=['Date','Open','High','Low','Close','Volume','Divide','Stock split']
     data.index = pd.to_datetime(data['Date'])
@@ -84,6 +102,7 @@ def bollingerBand(stockData,N,rate):
     stockData['Lower'] = stockData[MA_N] - (stockData[STD_N] * rate  )
     stockData['percentB'] = ((stockData['Close']-stockData['Lower']) / (stockData['Upper']-stockData['Lower']))
     stockData['Bbandwidth'] = (stockData['Upper']-stockData['Lower']) / stockData[MA_N]
+
 
 def exponentialMovingAverage(stockData,N):
     EMA_NAME = "EMA_"+str(N)
@@ -119,6 +138,30 @@ def percentB_below(stockData):
         previous = value
     return signal 
 
+def cal_U(num):
+    if num >= 0:
+        return num
+    else:
+        return 0
+def cal_D(num):
+    num = -num
+    return cal_U(num)
+
+
+def RSI(stockData,N,days=1):
+    #relative strength index RSI
+	#RS = EMA(U,n) / EMA(D,n)
+	#RSI = (1 - (1/(1+RS)))*100%
+    stockData['U'] = stockData['DIF'].apply(cal_U)
+    stockData['D'] = stockData['DIF'].apply(cal_D)
+    stockData['ema_U'] = stockData['U'].ewm(span=N).mean()
+    stockData['ema_D'] = stockData['D'].ewm(span=N).mean()
+    stockData['RS'] = stockData['ema_U']/stockData['ema_D']
+    stockData['RSI'] = (1 - (1/(1+stockData['RS'])))*100
+    #stockData['RSI']=talib.RSI(stockData['Close'])
+	
+
+
 def percentB_above(stockData):
     percentB = stockData['percentB']
     price = stockData['Close']
@@ -131,6 +174,25 @@ def percentB_above(stockData):
             signal.append(np.nan)
         previous = value
     return signal 
+
+
+
+
+def showStockData2(stockData,stockName ):
+    style.use('ggplot')
+    price = stockData['Close']
+    price.head()
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
+    stockData = stockData.reset_index()
+    stockData['Date'] = stockData['Date'].apply(lambda d: mdates.date2num(d.to_pydatetime()))
+    candlestick = [tuple(x) for x in stockData[['Date','Open','High','Low','Close']].values]
+    print(candlestick)
+    candlestick_ohlc(ax1, candlestick[-120:], width=0.7,colorup='r',colordown='green',alpha=0.8)
+    plt.plot(stockData["MA_20"][-120:],linewidth=1,alpha=0.7,label="MA20")
+    plt.legend()
+    plt.show()
+
 
 def showStockData(stockData,stockName):
     #marketcolor
@@ -185,11 +247,13 @@ def showStockData(stockData,stockName):
         #mpf.make_addplot( low_signal[-Days:],color='g',markersize=200,marker='^',type='scatter' ),
         #mpf.make_addplot( high_signal[-Days:],color='g',markersize=200,marker='x',type='scatter' ),
         mpf.make_addplot( stockData['Bbandwidth'][-Days:],color='r',panel=3,width=0.75,ylabel="BD"),
-        mpf.make_addplot( stockData['percentB'][-Days:],color='r', panel=2,width=0.75,ylabel="%B")
-        ]
+        mpf.make_addplot( stockData['percentB'][-Days:],color='r', panel=2,width=0.75,ylabel="%B"),
+        mpf.make_addplot(stockData['RSI'][-Days:], color='g', panel=4, ylabel="RSI")
+    ]
     
     #add legend which doesn't available in current mplfinance library
-    fig, axes = mpf.plot(stockData[-Days:], **kwargs,style=s,show_nontrading= False,addplot=apds,returnfig=True)
+    fig, axes = mpf.plot(stockData[-Days:], **kwargs,style=s,show_nontrading= False,addplot=apds,returnfig=True,update_width_config=dict(candle_linewidth=2))
+    #fig, axes = mpf.plot(stockData[-Days:], **kwargs,style=s,show_nontrading= False,addplot=apds,returnfig=True)
     #configure chart legend and title
     #axes[0].legend(['MA_5'],['MA_20'],['Upper'],['Lower'])
     #_, axs = plt.subplots(nrows=2,ncols=2,figsize=(7,5))
@@ -200,11 +264,12 @@ def showStockData(stockData,stockName):
     #考慮網頁化?
 
     mpf.show()
-
-
+    
+ 
 
 
 def run():
+    #loadStock()
     file_name = updateStock()
     file_name="stock_id.csv"
     stock_list = readStocks(file_name)
@@ -212,11 +277,16 @@ def run():
     stockID = input("Enter stockID (.TW) for listed company (.TWO) for over-the-counter company :")
     stockFile = selectStock(stockID)
     stockData = getStockData(stockFile)
+    #tempData = stockData.copy()
     movingaverage(stockData,20)
     bollingerBand(stockData,20,2.1)
+    #exponentialMovingAverage(tempData,10)
+    #print(tempData)
     MACD(stockData,12,26,9)
-    print(stockData)
+    RSI(stockData,10)
+    #print(stockData)
     showStockData(stockData,stockFile)
+    #showStockData2(stockData,stockFile)
 
 if __name__=="__main__":
     run()
