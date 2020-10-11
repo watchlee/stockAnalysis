@@ -37,19 +37,6 @@ STOCKINFO_URL = 'http://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch={stock_
 import requests.packages.urllib3
 requests.packages.urllib3.disable_warnings()
 
-def loadStock():
-    Listed_stock = requests.get("http://isin.twse.com.tw/isin/C_public.jsp?strMode=2")
-    OTC_stock = requests.get("http://isin.twse.com.tw/isin/C_public.jsp?strMode=4")
-    df = pd.read_html(Listed_stock.text)[0]
-    df2 = pd.read_html(OTC_stock.text)[0]
-    df.columns= df.iloc[0]
-    df = df.iloc[1:]
-    df = df.dropna(thresh=3, axis=0).dropna(thresh=3, axis=1)
-    df2.columns=df2.iloc[0]
-    df2 = df2.iloc[1:]
-    df2 = df2.dropna(thresh=3, axis=0).dropna(thresh=3, axis=1)
-    print(df)
-    print(df2)
 def updateStock():
     link = 'https://quality.data.gov.tw/dq_download_json.php?nid=11549&md5_url=bb878d47ffbe7b83bfc1b41d0b24946e'
     #request stock data 
@@ -269,7 +256,6 @@ def showStockData(stockData,stockName):
 
 
 def run():
-    #loadStock()
     file_name = updateStock()
     file_name="stock_id.csv"
     stock_list = readStocks(file_name)
