@@ -6,6 +6,7 @@
 import requests
 from io import StringIO
 from datetime import datetime
+import datetime
 import time
 from matplotlib import pyplot as plt
 import matplotlib as mpl
@@ -63,7 +64,7 @@ def selectStock(stockID):
     data = yf.Ticker(stockID)
     #get all historical_data from this stock code
     historical_data = pd.DataFrame() 
-    df = data.history(period="max")
+    df = data.history(period="4mo")
     historical_data = pd.concat([historical_data, df])
     time.sleep(0.8)
     stock_file = stockID+".csv"
@@ -74,8 +75,11 @@ def getStockData(stock_file):
     #data = pd.read_csv(stock_file, parse_dates=True, index_col='Date')
     data = pd.read_csv(stock_file)
     data.columns=['Date','Open','High','Low','Close','Volume','Divide','Stock split']
+    #The volume of showing is incorrect
+    data['Volume'] = data['Volume']/1000
     data.index = pd.to_datetime(data['Date'])
     return data
+
 
 def bollingerBand(stockData,N,rate):
     STD_N = "STD_"+str(N)
@@ -214,7 +218,7 @@ def showStockData(stockData,stockName):
 	type='candle', 
 	mav=(5 ), 
 	volume=True, 
-	title='\nTW_stock %s candle_line' % (symbol),ylabel='OHLC Candles', 
+	title='\nStock %s ' % (symbol),ylabel='OHLC Candles', 
         ylabel_lower='Trade volume',
         figscale=1.25,
         figratio=(16,5)
@@ -225,8 +229,8 @@ def showStockData(stockData,stockName):
     #calculate above and below percentB
     #low_signal = percentB_below(stockData)
     #high_signal = percentB_above(stockData)
-    Days = input("Enter Days to read:")
-    Days = int(Days)
+    #Days = int(Days)
+    Days = 60
     apds = [
         mpf.make_addplot( stockData['Lower'][-Days:],color='b',width=0.75 ,ylabel='Lower'),
         mpf.make_addplot( stockData['Upper'][-Days:], color = 'b',width=0.75),
@@ -235,7 +239,7 @@ def showStockData(stockData,stockName):
         #mpf.make_addplot( high_signal[-Days:],color='g',markersize=200,marker='x',type='scatter' ),
         mpf.make_addplot( stockData['Bbandwidth'][-Days:],color='r',panel=3,width=0.75,ylabel="BD"),
         mpf.make_addplot( stockData['percentB'][-Days:],color='r', panel=2,width=0.75,ylabel="%B"),
-        mpf.make_addplot(stockData['RSI'][-Days:], color='g', panel=4, ylabel="RSI")
+        #mpf.make_addplot(stockData['RSI'][-Days:], color='g', panel=4, ylabel="RSI")
     ]
     
     #add legend which doesn't available in current mplfinance library
@@ -246,14 +250,44 @@ def showStockData(stockData,stockName):
     #_, axs = plt.subplots(nrows=2,ncols=2,figsize=(7,5))
     #todo_list:
     #回測系統
-    #優化視窗 鼠標可顯示該位置的價格 數值等等...
     #加入其他技術分析
     #考慮網頁化?
+    #2020-10-25
+    #優化視窗 鼠標可顯示該位置的價格 數值等等...
 
     mpf.show()
     
- 
+def scanAllTickInList(stock_list):
+    flag = determineBlownUp(stockData)
+    filter_list = [] 
+    pass
 
+def determineBlownUp(stockData):
+    #stockData['Share']= stockData['Volume']/1000
+    avg_volume=0
+    blown_up_volume_flag = False
+    blown_up_skill_flag = False
+    for days in range(1,6): 
+        if ( days == 1 ):
+            trade_volue = stockData['Volume'].iloc[-1]
+        else:
+            avg_volume = avg_volume + stockData['Volume'].iloc[-days]
+        day = stockData['Date'].iloc[-days]
+        High_price = stockData['High'].iloc[-days]
+        Low_price = stockData['Low'].iloc[-days]
+        Upper = stockData['Upper'].iloc[-days] 
+        if ( Upper >= Low_price and Upper <= High_price ):
+            blown_up_skill_flag = True
+    avg_volume = avg_volume/5
+    diff_volume = trade_volue / avg_volume
+    if ( diff_volume >= 2.0 ):
+        blown_up_volume_flag = True
+    
+    if ( blown_up_volume_flag and blown_up_skill_flag):
+        print("Yes")
+        return True
+    return False 
+    pass
 
 def run():
     file_name = updateStock()
@@ -269,8 +303,9 @@ def run():
     #exponentialMovingAverage(tempData,10)
     #print(tempData)
     MACD(stockData,12,26,9)
-    RSI(stockData,10)
+    #RSI(stockData,10)
     #print(stockData)
+    determineBlownUp(stockData)
     showStockData(stockData,stockFile)
     #showStockData2(stockData,stockFile)
 
