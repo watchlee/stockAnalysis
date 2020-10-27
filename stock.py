@@ -59,6 +59,7 @@ def showStocks(stock_list):
         stock_id = stock_list.loc[i,'證券代號']+'.TW'
         stock_name = stock_list.loc[i,'證券名稱']
         print(str(i)+' '+stock_id+' '+stock_name)
+        selectStock(stock_id)
 
 def selectStock(stockID):
     data = yf.Ticker(stockID)
@@ -263,37 +264,85 @@ def scanAllTickInList(stock_list):
     pass
 
 def determineBlownUp(stockData):
+    price_threshold=10000000
     #stockData['Share']= stockData['Volume']/1000
     avg_volume=0
     blown_up_volume_flag = False
     blown_up_skill_flag = False
-    for days in range(1,6): 
-        if ( days == 1 ):
-            trade_volue = stockData['Volume'].iloc[-1]
-        else:
-            avg_volume = avg_volume + stockData['Volume'].iloc[-days]
+    
+    blown_up_day = 0
+    for days in range(1,5): 
         day = stockData['Date'].iloc[-days]
         High_price = stockData['High'].iloc[-days]
         Low_price = stockData['Low'].iloc[-days]
         Upper = stockData['Upper'].iloc[-days] 
         if ( Upper >= Low_price and Upper <= High_price ):
             blown_up_skill_flag = True
+            blown_up_day = days
+	
+    close_price = 0.0
+    trade_volume = 0.0
+    if blown_up_skill_flag :
+        for days in range(blown_up_day, blown_up_day+6):
+            volume = stockData['Volume'].iloc[-days]
+            if ( volume <= 0.0 ):
+                return False	
+            if ( days == 1 ):
+                trade_volume = volume 
+                close_price = stockData['Close'].iloc[-days]
+            else:
+                avg_volume = avg_volume + volume
+    else:
+        return False
+        
     avg_volume = avg_volume/5
-    diff_volume = trade_volue / avg_volume
-    if ( diff_volume >= 2.0 ):
+    diff_volume = trade_volume / avg_volume
+    
+    total_money = 1000 * trade_volume*close_price
+    if ( diff_volume >= 2.0 and ( (total_money) >= price_threshold)):
+        print(total_money)
         blown_up_volume_flag = True
     
     if ( blown_up_volume_flag and blown_up_skill_flag):
-        print("Yes")
         return True
     return False 
     pass
 
+def checkEachTicker(stock_list):
+    filter_list = []
+    for i in stock_list.index:
+        stock_id = stock_list.loc[i,'證券代號']+'.TW'
+        stock_name = stock_list.loc[i,'證券名稱']
+        stockFile = stock_id+'.csv'
+        flag = False
+        try:
+            stockData = getStockData(stockFile)
+            movingaverage(stockData,20)
+            bollingerBand(stockData,20,2.1)
+            
+            try:
+                flag = determineBlownUp(stockData)
+            except:
+                pass
+        except:
+            pass
+        if flag:
+            filter_list.append(stockFile+" "+stock_name)
+			 
+    for line in filter_list:
+        print(line)	
+
 def run():
+    '''
     file_name = updateStock()
     file_name="stock_id.csv"
     stock_list = readStocks(file_name)
-    #showStocks(stock_list)
+    showStocks(stock_list)
+	'''
+    file_name = "stock_id.csv"
+    stock_list = readStocks(file_name)
+    checkEachTicker(stock_list)
+    '''
     stockID = input("Enter stockID (.TW) for listed company (.TWO) for over-the-counter company :")
     stockFile = selectStock(stockID)
     stockData = getStockData(stockFile)
@@ -308,6 +357,7 @@ def run():
     determineBlownUp(stockData)
     showStockData(stockData,stockFile)
     #showStockData2(stockData,stockFile)
+	'''
 
 if __name__=="__main__":
     run()
